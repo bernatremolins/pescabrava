@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pescabrava · Guia de pesca Costa Brava</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-2: #eef2f5;
+    --text: #17222d;
+    --muted: #5a6875;
+    --border: #d5dde4;
+    --accent: #0b6e99;
+    --accent-text: #ffffff;
+    --now: #fff4d6;
+    --lvl1: #e3f4ea; --lvl2: #fff3c4; --lvl3: #ffd9b0; --lvl4: #ffb9b0;
+    --warn: #a4400a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f151b; --surface: #17202a; --surface-2: #1f2a36; --text: #e6edf3;
+      --muted: #97a6b4; --border: #2c3a48; --accent: #4fb3e0; --accent-text: #08131b;
+      --now: #3a3418; --lvl1: #183626; --lvl2: #3d3714; --lvl3: #4a2e14; --lvl4: #521f1b; --warn: #ffb07a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f151b; --surface: #17202a; --surface-2: #1f2a36; --text: #e6edf3;
+    --muted: #97a6b4; --border: #2c3a48; --accent: #4fb3e0; --accent-text: #08131b;
+    --now: #3a3418; --lvl1: #183626; --lvl2: #3d3714; --lvl3: #4a2e14; --lvl4: #521f1b; --warn: #ffb07a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: grid; grid-template-rows: auto 1fr; overflow-x: hidden;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 16px; margin: 0; white-space: nowrap; }
+  .zones { display: flex; flex-wrap: wrap; gap: 6px; }
+  .zones button, .btn {
+    font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  }
+  .zones button:hover, .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  main { display: grid; grid-template-columns: 1fr 460px; min-height: 0; }
+  #mapa { height: 100%; min-height: 300px; }
+  #panel {
+    background: var(--surface); border-left: 1px solid var(--border);
+    overflow-y: auto; padding: 16px; min-width: 0;
+  }
+  @media (max-width: 900px) {
+    body { display: block; height: auto; }
+    main { display: block; }
+    #mapa { height: 55vh; }
+    #panel { border-left: 0; border-top: 1px solid var(--border); }
+  }
+  #panel h2 { font-size: 15px; margin: 0 0 4px; }
+  #panel h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 6px; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+  select { font: inherit; font-size: 13px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
+  .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: max-content; min-width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 4px 7px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  thead th { background: var(--surface-2); font-weight: 600; position: sticky; top: 0; }
+  th.var { text-align: left; position: sticky; left: 0; background: var(--surface); z-index: 1; font-weight: 500; }
+  thead th.var { background: var(--surface-2); z-index: 2; }
+  .now { background: var(--now); font-weight: 600; }
+  .sep { border-left: 2px solid var(--muted); }
+  td[data-l="1"] { background: var(--lvl1); } td[data-l="2"] { background: var(--lvl2); }
+  td[data-l="3"] { background: var(--lvl3); } td[data-l="4"] { background: var(--lvl4); }
+  .hsub { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+  .arrow { display: inline-block; font-size: 12px; line-height: 1; }
+  .alerts { list-style: none; padding: 0; margin: 8px 0 0; }
+  .alerts li { padding: 6px 10px; border-radius: 6px; background: var(--surface-2); margin-bottom: 6px; border-left: 3px solid var(--accent); }
+  .alerts li.w { border-left-color: var(--warn); }
+  .empty { padding: 24px 4px; color: var(--muted); }
+  .error { color: var(--warn); }
+  footer.note { margin-top: 18px; font-size: 11px; color: var(--muted); }
+  footer.note a { color: var(--accent); }
+  .estado { font-size: 12px; color: var(--muted); }
+  /* Índice de pesca */
+  .bola {
+    width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+    font: 700 14px/1 system-ui, sans-serif; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); cursor: pointer;
+  }
+  .bola.grande { width: 52px; height: 52px; font-size: 24px; flex: none; }
+  .estrella {
+    font-size: 40px; line-height: 40px; text-align: center; color: #f5b301; cursor: pointer;
+    text-shadow: 0 0 2px #3a2a00, 0 0 2px #3a2a00, 0 1px 5px rgba(0,0,0,.6);
+  }
+  .indice { display: flex; gap: 12px; align-items: center; margin: 8px 0; }
+  .destacado { padding: 8px 10px; border-radius: 8px; background: var(--now); margin: 8px 0; }
+  #panel h4 { font-size: 13px; margin: 14px 0 4px; }
+  #panel ul.motivos { margin: 4px 0; padding-left: 18px; }
+  #panel ul.motivos li { margin-bottom: 3px; }
+  td.punt { font-weight: 700; }
+  table.plan { width: 100%; }
+  table.plan td, table.plan th { white-space: normal; text-align: left; vertical-align: top; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎣 Costa Brava des de costa</h1>
+  <nav class="zones" id="zones"></nav>
+  <button class="btn primary" id="btnMejor" disabled>★ Millor spot (24 h)</button>
+  <span class="estado" id="estadoIndice">Calculant l’índex de pesca…</span>
+</header>
+<main>
+  <div id="mapa"></div>
+  <aside id="panel">
+    <div id="contenido" class="empty">
+      <h2>Selecciona un punt de la costa</h2>
+      <p>Les <strong>boles</strong> del mapa marquen, aproximadament cada 10 km de costa, l’índex de pesca de l’1 al 10 (10 = millors condicions) per a les pròximes 24 h. L’<strong>estrella daurada</strong> marca el millor spot.</p>
+      <p>Clica una bola, l’estrella o qualsevol punt del mapa (millor sobre l’aigua, a prop de la vora) per veure l’índex, el pla de pesca, el temps i l’estat del mar: les últimes 48 h, 24 h i 8 h, el valor actual i la previsió de les pròximes 8 hores.</p>
+      <p class="muted">Canvia el tipus de mapa amb el botó de capes, a dalt a la dreta.</p>
+    </div>
+  </aside>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="trams-costa.js"></script>
+<script src="motor-pesca.js"></script>
+<script>
+// ---------- Config ----------
+const ZONAS = [
+  { n: 'Tota la costa',             b: [[41.66, 2.80], [42.45, 3.35]] },
+  { n: 'Lloret – Tossa',            b: [[41.68, 2.82], [41.74, 2.98]] },
+  { n: 'Sant Feliu – Palamós',      b: [[41.76, 2.99], [41.86, 3.16]] },
+  { n: 'Palafrugell – L\'Estartit', b: [[41.86, 3.14], [42.07, 3.25]] },
+  { n: 'Golf de Roses',             b: [[42.06, 3.08], [42.28, 3.24]] },
+  { n: 'Cap de Creus – Portbou',    b: [[42.25, 3.12], [42.44, 3.33]] },
+];
+
+// Localidades aproximadas para nombrar el punto seleccionado
+const LUGARES = [
+  ['Lloret de Mar', 41.699, 2.845], ['Tossa de Mar', 41.720, 2.932], ['Sant Feliu de Guíxols', 41.780, 3.030],
+  ['S\'Agaró', 41.793, 3.054], ['Platja d\'Aro', 41.817, 3.067], ['Palamós', 41.846, 3.129],
+  ['Calella de Palafrugell', 41.887, 3.183], ['Llafranc', 41.894, 3.194], ['Tamariu', 41.917, 3.206],
+  ['Aiguablava (Begur)', 41.936, 3.218], ['Sa Riera (Begur)', 41.966, 3.210], ['Platja de Pals', 41.985, 3.205],
+  ['L\'Estartit', 42.052, 3.198], ['L\'Escala', 42.125, 3.135], ['Sant Pere Pescador', 42.185, 3.110],
+  ['Empuriabrava', 42.246, 3.124], ['Roses', 42.262, 3.176], ['Cadaqués', 42.288, 3.278],
+  ['Port de la Selva', 42.337, 3.204], ['Llançà', 42.368, 3.158], ['Colera', 42.404, 3.153], ['Portbou', 42.426, 3.159],
+];
+
+const MODELOS = [
+  ['best_match', 'Millor model (auto)'],
+  ['ecmwf_ifs025', 'ECMWF IFS'],
+  ['icon_seamless', 'DWD ICON'],
+  ['meteofrance_seamless', 'Météo-France AROME/ARPEGE'],
+  ['gfs_seamless', 'NOAA GFS'],
+];
+
+const COLS = [-48, -24, -8, 0, 1, 2, 3, 4, 5, 6, 7, 8];
+const TZ = 'Europe/Madrid';
+const VIENTOS = ['N · Tramuntana', 'NE · Gregal', 'E · Llevant', 'SE · Xaloc', 'S · Migjorn', 'SO · Garbí', 'O · Ponent', 'NO · Mestral'];
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+// ---------- Mapa ----------
+const map = L.map('mapa', { zoomControl: true }).fitBounds(ZONAS[0].b);
+L.control.scale({ imperial: false }).addTo(map);
+
+const ICGC = 'https://geoserveis.icgc.cat/servei/catalunya/orto-territorial/wms';
+const ATR_ICGC = '© <a href="https://www.icgc.cat">Institut Cartogràfic i Geològic de Catalunya</a>';
+const EMOD = 'https://ows.emodnet-bathymetry.eu/wms';
+const ATR_EMOD = '© <a href="https://emodnet.ec.europa.eu/en/bathymetry">EMODnet Bathymetry</a>';
+
+const bases = {
+  'Ortofoto ICGC 2025 (vigent)': L.tileLayer.wms(ICGC, { layers: 'ortofoto_color_vigent', format: 'image/jpeg', maxZoom: 20, attribution: ATR_ICGC }),
+  'Ortofoto ICGC 2026 (provisional, la més recent)': L.tileLayer.wms(ICGC, { layers: 'ortofoto_color_provisional', format: 'image/jpeg', maxZoom: 20, attribution: ATR_ICGC }),
+  'Ortofoto PNOA (IGN)': L.tileLayer('https://www.ign.es/wmts/pnoa-ma?request=GetTile&service=WMTS&VERSION=1.0.0&Layer=OI.OrthoimageCoverage&Style=default&Format=image/jpeg&TileMatrixSet=GoogleMapsCompatible&TileMatrix={z}&TileRow={y}&TileCol={x}', { maxZoom: 20, attribution: 'PNOA cedido por © <a href="https://www.ign.es">Instituto Geográfico Nacional</a>' }),
+  'Satèl·lit Sentinel-2 2025': L.tileLayer('https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg', { maxNativeZoom: 15, maxZoom: 19, attribution: '<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX (Copernicus Sentinel data 2025)' }),
+  'Mapa bàsic': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 20, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>' }),
+  'Fondària (EMODnet)': L.tileLayer.wms(EMOD, { layers: 'emodnet:mean_atlas_land', format: 'image/png', maxZoom: 19, attribution: ATR_EMOD }),
+};
+const overlays = {
+  'Isòbates (línies de fondària)': L.tileLayer.wms(EMOD, { layers: 'emodnet:contours', format: 'image/png', transparent: true, maxZoom: 19, attribution: ATR_EMOD }),
+  'Fondària semitransparent': L.tileLayer.wms(EMOD, { layers: 'emodnet:mean_multicolour', format: 'image/png', transparent: true, opacity: 0.5, maxZoom: 19, attribution: ATR_EMOD }),
+};
+
+const baseGuardada = store.get('capaBase');
+(bases[baseGuardada] || bases['Ortofoto ICGC 2025 (vigent)']).addTo(map);
+const ctrlCapas = L.control.layers(bases, overlays, { collapsed: true }).addTo(map);
+map.on('baselayerchange', e => store.set('capaBase', e.name));
+map.attributionControl.addAttribution('Cartografia orientativa, no apta per a la navegació');
+
+const zonasNav = document.getElementById('zones');
+ZONAS.forEach(z => {
+  const b = document.createElement('button');
+  b.textContent = z.n;
+  b.onclick = () => map.fitBounds(z.b);
+  zonasNav.appendChild(b);
+});
+
+let marcador = null;
+let punto = null;
+map.on('click', e => seleccionar(e.latlng.lat, e.latlng.lng));
+
+// ---------- Utilidades ----------
+const $ = id => document.getElementById(id);
+const kmhToKn = v => v / 1.852;
+const fmtHora = (ts, dia) => new Intl.DateTimeFormat('ca-ES', dia
+  ? { timeZone: TZ, weekday: 'short', hour: '2-digit', minute: '2-digit' }
+  : { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(new Date(ts * 1000));
+
+function distKm(a1, o1, a2, o2) {
+  const r = Math.PI / 180, dA = (a2 - a1) * r, dO = (o2 - o1) * r;
+  const h = Math.sin(dA / 2) ** 2 + Math.cos(a1 * r) * Math.cos(a2 * r) * Math.sin(dO / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+function lugarCercano(lat, lon) {
+  let best = null;
+  for (const [n, a, o] of LUGARES) {
+    const d = distKm(lat, lon, a, o);
+    if (!best || d < best.d) best = { n, d };
+  }
+  return best;
+}
+function dirTexto(d) {
+  if (d == null) return '—';
+  // La flecha apunta hacia donde va el viento o el oleaje (procedencia + 180°)
+  return `<span class="arrow" style="transform:rotate(${(d + 180) % 360}deg)">↑</span> ${VIENTOS[Math.round(d / 45) % 8].split(' · ')[0]}`;
+}
+function douglas(h) {
+  if (h == null) return '—';
+  if (h === 0) return 'Calma';
+  if (h <= 0.1) return 'Arrissada';
+  if (h <= 0.5) return 'Marejoleta';
+  if (h <= 1.25) return 'Maror';
+  if (h <= 2.5) return 'Forta maror';
+  if (h <= 4) return 'Maregassa';
+  if (h <= 6) return 'Mar brava';
+  return 'Mar molt brava+';
+}
+const nivelViento = v => v == null || Number.isNaN(v) ? 0 : v < 12 ? 1 : v < 25 ? 2 : v < 40 ? 3 : 4;
+const nivelOla = h => h == null ? 0 : h < 0.5 ? 1 : h < 1.25 ? 2 : h < 2.5 ? 3 : 4;
+
+async function getJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status} a ${new URL(url).host}`);
+  return r.json();
+}
+
+// ---------- Datos ----------
+const VARS_TIEMPO = 'temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,precipitation,cloud_cover';
+const VARS_MAR = 'wave_height,wave_direction,wave_period,wind_wave_height,swell_wave_height,swell_wave_period,swell_wave_direction,sea_surface_temperature,sea_level_height_msl,ocean_current_velocity,ocean_current_direction';
+
+function urlTiempo(lat, lon, modelo) {
+  return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=${VARS_TIEMPO}&past_hours=48&forecast_hours=25&timeformat=unixtime&wind_speed_unit=kmh&models=${modelo}`;
+}
+function urlMar(lat, lon) {
+  return `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=${VARS_MAR}&past_hours=48&forecast_hours=25&timeformat=unixtime&cell_selection=sea`;
+}
+
+function serie(json) {
+  // Devuelve un accesor valor(variable, timestamp)
+  const idx = new Map(json.hourly.time.map((t, i) => [t, i]));
+  return (v, ts) => { const i = idx.get(ts); const a = json.hourly[v]; return (i == null || !a) ? null : a[i]; };
+}
+
+let estado = { modelo: store.get('modelo') || 'best_match', nudos: store.get('nudos') === '1' };
+
+async function seleccionar(lat, lon) {
+  lat = +lat.toFixed(4); lon = +lon.toFixed(4);
+  punto = { lat, lon };
+  history.replaceState(null, '', `#${lat},${lon}`);
+  if (marcador) marcador.setLatLng([lat, lon]); else marcador = L.marker([lat, lon]).addTo(map);
+  await cargar();
+}
+
+async function cargar() {
+  const { lat, lon } = punto;
+  const c = $('contenido');
+  c.className = '';
+  const lugar = lugarCercano(lat, lon);
+  c.innerHTML = `<h2>${lugar.d < 4 ? lugar.n : 'Punt seleccionat'}</h2>
+    <div class="muted">${lat.toFixed(4)}, ${lon.toFixed(4)} · ${lugar.d < 4 ? `a ${lugar.d.toFixed(1)} km del centre` : `a prop de ${lugar.n} (${lugar.d.toFixed(1)} km)`}</div>
+    <p class="muted">Carregant dades…</p>`;
+
+  const [rt, rm] = await Promise.allSettled([getJSON(urlTiempo(lat, lon, estado.modelo)), getJSON(urlMar(lat, lon))]);
+  if (punto.lat !== lat || punto.lon !== lon) return; // ya se ha seleccionado otro punto
+  render(lugar, rt, rm);
+}
+
+function render(lugar, rt, rm) {
+  const { lat, lon } = punto;
+  const t = rt.status === 'fulfilled' ? rt.value : null;
+  const m = rm.status === 'fulfilled' ? rm.value : null;
+  const base = t || m;
+  const c = $('contenido');
+  if (!base) {
+    c.innerHTML = `<p class="error">No s’han pogut carregar les dades (${rt.reason?.message || ''} ${rm.reason?.message || ''}). Comprova la connexió i torna-ho a provar.</p>`;
+    return;
+  }
+
+  // Hora actual = última hora del array que no supera el momento presente
+  const ahora = Math.floor(Date.now() / 1000);
+  const tiempos = base.hourly.time;
+  const tAhora = tiempos.filter(x => x <= ahora).pop() ?? tiempos[0];
+  const ts = COLS.map(o => tAhora + o * 3600);
+  const vt = t ? serie(t) : () => null;
+  const vm = m ? serie(m) : () => null;
+  const marVacio = !m || tiempos.length && ts.every(x => vm('wave_height', x) == null);
+
+  const u = estado.nudos ? 'kn' : 'km/h';
+  const vel = v => v == null ? '—' : Math.round(estado.nudos ? kmhToKn(v) : v);
+  const num = (v, d = 1) => v == null ? '—' : v.toFixed(d);
+
+  const filas = [
+    { g: 'Temps' },
+    { l: 'Temperatura (°C)', f: x => num(vt('temperature_2m', x)) },
+    { l: 'Humitat (%)', f: x => num(vt('relative_humidity_2m', x), 0) },
+    { l: `Vent mitjà (${u})`, f: x => vel(vt('wind_speed_10m', x)), lv: x => nivelViento(vt('wind_speed_10m', x)) },
+    { l: `Ratxes (${u})`, f: x => vel(vt('wind_gusts_10m', x)), lv: x => { const g = vt('wind_gusts_10m', x); return g == null ? 0 : nivelViento(g * 0.75); } },
+    { l: 'Direcció vent', f: x => dirTexto(vt('wind_direction_10m', x)) },
+    { l: 'Pressió (hPa)', f: x => num(vt('pressure_msl', x), 0) },
+    { l: 'Precipitació (mm)', f: x => num(vt('precipitation', x)) },
+    { l: 'Nuvolositat (%)', f: x => num(vt('cloud_cover', x), 0) },
+    { g: 'Mar' },
+    { l: 'Onada total (m)', f: x => num(vm('wave_height', x)), lv: x => nivelOla(vm('wave_height', x)) },
+    { l: 'Estat (Douglas)', f: x => douglas(vm('wave_height', x)) },
+    { l: 'Mar de vent (m)', f: x => num(vm('wind_wave_height', x)) },
+    { l: 'Mar de fons (m)', f: x => num(vm('swell_wave_height', x)), lv: x => nivelOla(vm('swell_wave_height', x)) },
+    { l: 'Període fons (s)', f: x => num(vm('swell_wave_period', x)) },
+    { l: 'Direcció onatge', f: x => dirTexto(vm('wave_direction', x)) },
+    { l: 'Període onada (s)', f: x => num(vm('wave_period', x)) },
+    { l: 'Temp. aigua (°C)', f: x => num(vm('sea_surface_temperature', x)) },
+    { l: 'Nivell del mar (cm)', f: x => { const v = vm('sea_level_height_msl', x); return v == null ? '—' : Math.round(v * 100); } },
+    { l: `Corrent (${u})`, f: x => { const v = vm('ocean_current_velocity', x); return v == null ? '—' : num(estado.nudos ? kmhToKn(v) : v); } },
+    { l: 'Dir. corrent', f: x => { const d = vm('ocean_current_direction', x); return d == null ? '—' : `<span class="arrow" style="transform:rotate(${d}deg)">↑</span>`; } },
+  ];
+
+  const cab = COLS.map((o, i) => {
+    const etq = o === 0 ? 'Ara' : (o > 0 ? `+${o} h` : `${o} h`).replace('-', '−');
+    const cls = [o === 0 ? 'now' : '', o === 1 ? 'sep' : ''].join(' ');
+    return `<th class="${cls}">${etq}<span class="hsub">${fmtHora(ts[i], o < 0)}</span></th>`;
+  }).join('');
+
+  const cuerpo = filas.map(r => {
+    if (r.g) return `<tr><th class="var" colspan="1"><strong>${r.g}</strong></th>${COLS.map(() => '<td></td>').join('')}</tr>`;
+    return `<tr><th class="var">${r.l}</th>${ts.map((x, i) => {
+      const cls = [COLS[i] === 0 ? 'now' : '', COLS[i] === 1 ? 'sep' : ''].join(' ');
+      const lv = r.lv ? r.lv(x) : 0;
+      return `<td class="${cls}"${lv ? ` data-l="${lv}"` : ''}>${r.f(x)}</td>`;
+    }).join('')}</tr>`;
+  }).join('');
+
+  // Resumen por ventana temporal
+  const rango = (desde, hasta) => tiempos.filter(x => x >= tAhora + desde * 3600 && x <= tAhora + hasta * 3600);
+  const stats = (fn, xs) => { const v = xs.map(fn).filter(n => n != null); return v.length ? { min: Math.min(...v), max: Math.max(...v), avg: v.reduce((a, b) => a + b, 0) / v.length } : null; };
+  const ventanas = [['Últimes 48 h', -48, 0], ['Últimes 24 h', -24, 0], ['Últimes 8 h', -8, 0], ['Pròximes 8 h', 1, 8]];
+  const resumen = ventanas.map(([n, a, b]) => {
+    const xs = rango(a, b);
+    const w = stats(x => vt('wind_speed_10m', x), xs), g = stats(x => vt('wind_gusts_10m', x), xs);
+    const te = stats(x => vt('temperature_2m', x), xs), o = stats(x => vm('wave_height', x), xs);
+    const sst = stats(x => vm('sea_surface_temperature', x), xs), p = stats(x => vt('precipitation', x), xs);
+    const lluvia = xs.map(x => vt('precipitation', x)).filter(v => v != null).reduce((s, v) => s + v, 0);
+    return `<tr><th class="var">${n}</th>
+      <td>${w ? vel(w.avg) : '—'}</td><td data-l="${g ? nivelViento(g.max * 0.75) : 0}">${g ? vel(g.max) : '—'}</td>
+      <td>${te ? `${te.min.toFixed(0)} / ${te.max.toFixed(0)}` : '—'}</td>
+      <td data-l="${o ? nivelOla(o.max) : 0}">${o ? o.max.toFixed(1) : '—'}</td>
+      <td>${sst ? sst.avg.toFixed(1) : '—'}</td><td>${p ? lluvia.toFixed(1) : '—'}</td></tr>`;
+  }).join('');
+
+  const avisos = generarAvisos(ts.slice(3), vt, vm, marVacio);
+  const nombreModelo = MODELOS.find(x => x[0] === estado.modelo)[1];
+  const prox = MOTOR.tramProper(lat, lon);
+  const ev = prox.d <= 7 && t ? MOTOR.avaluarTram(prox.t, vt, vm, tAhora) : null;
+
+  c.innerHTML = `
+    <h2>${lugar.d < 4 ? lugar.n : 'Punt seleccionat'}</h2>
+    <div class="muted">${lat.toFixed(4)}, ${lon.toFixed(4)} · ${lugar.d < 4 ? `a ${lugar.d.toFixed(1)} km del centre` : `a prop de ${lugar.n} (${lugar.d.toFixed(1)} km)`}
+      ${m ? `<br>Cel·la de mar usada: ${m.latitude.toFixed(3)}, ${m.longitude.toFixed(3)} (a ${distKm(lat, lon, m.latitude, m.longitude).toFixed(1)} km)` : ''}</div>
+
+    <div class="controls">
+      <label>Model <select id="selModelo">${MODELOS.map(([k, n]) => `<option value="${k}"${k === estado.modelo ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+      <button class="btn" id="btnUnidad">${estado.nudos ? 'Veure en km/h' : 'Veure en nusos'}</button>
+      <button class="btn" id="btnRecargar">↻ Actualitza</button>
+    </div>
+
+    ${seccionIndice(ev, prox)}
+
+    <h3>Lectura ràpida (ara i pròximes 8 h)</h3>
+    <ul class="alerts">${avisos.map(a => `<li class="${a.w ? 'w' : ''}">${a.t}</li>`).join('')}</ul>
+
+    <h3>Evolució hora a hora</h3>
+    ${!t ? `<p class="error">Sense dades meteorològiques: ${rt.reason?.message || ''}</p>` : ''}
+    ${marVacio ? `<p class="error">Sense dades de mar per a aquest punt${rm.reason ? `: ${rm.reason.message}` : ''}. Prova de clicar sobre l’aigua, més lluny de la vora.</p>` : ''}
+    <div class="scroll"><table>
+      <thead><tr><th class="var">Variable</th>${cab}</tr></thead>
+      <tbody>${cuerpo}</tbody>
+    </table></div>
+    <p class="muted">Temps segons el model <strong>${nombreModelo}</strong>. Els valors passats són dades del model, no observacions d’estacions.</p>
+
+    <h3>Resum per període</h3>
+    <div class="scroll"><table>
+      <thead><tr><th class="var">Període</th><th>Vent mitjà (${u})</th><th>Ratxa màx. (${u})</th><th>Temp. mín./màx. (°C)</th><th>Onada màx. (m)</th><th>Aigua mitjana (°C)</th><th>Pluja (mm)</th></tr></thead>
+      <tbody>${resumen}</tbody>
+    </table></div>
+
+    <h3>Comparativa de models: vent de les pròximes 8 h</h3>
+    <div id="comparativa"><button class="btn" id="btnComparar">Compara ECMWF, ICON, AROME i GFS</button></div>
+
+    <footer class="note">
+      Dades: <a href="https://open-meteo.com">Open-Meteo</a> (CC BY 4.0), amb els models ECMWF, DWD ICON, Météo-France i NOAA GFS. L’onatge i la temperatura de l’aigua vénen dels models marins de Météo-France, ECMWF WAM i Copernicus Marine.
+      El nivell del mar és d’un model d’uns 8 km de resolució i és poc precís arran de costa.
+      Contrasta sempre amb les fonts oficials: <a href="https://www.aemet.es/es/eltiempo/prediccion/maritima">AEMET (marítima)</a>,
+      <a href="https://www.meteo.cat">Meteocat</a> i <a href="https://portus.puertos.es">Puertos del Estado (boies)</a>.
+      Les capes de fondària són orientatives i no serveixen per navegar.<br>
+      Privacitat: aquesta web no fa servir galetes, analítica ni comptes. Les coordenades que cliques s’envien a Open-Meteo per demanar la previsió.
+    </footer>`;
+
+  $('selModelo').onchange = e => { estado.modelo = e.target.value; store.set('modelo', estado.modelo); cargar(); cargarIndice(); };
+  $('btnUnidad').onclick = () => { estado.nudos = !estado.nudos; store.set('nudos', estado.nudos ? '1' : '0'); render(lugar, rt, rm); };
+  $('btnRecargar').onclick = cargar;
+  $('btnComparar').onclick = () => comparar(tAhora);
+}
+
+// ---------- Índice de pesca ----------
+function seccionIndice(ev, prox) {
+  if (prox.d > 7) return `<h3>Índex de pesca</h3><p class="muted">Aquest punt queda lluny dels trams de costa del projecte (Lloret – Portbou). Clica més a prop de la vora.</p>`;
+  if (!ev) return `<h3>Índex de pesca</h3><p class="error">No es pot calcular l’índex sense dades meteorològiques.</p>`;
+  const m = ev.millor;
+  const [bg, fg] = MOTOR.color(m.punts);
+  const esMejor = mejorGlobal && mejorGlobal.tram.id === ev.tram.id && prox.d < 1;
+  const { pos, neg } = MOTOR.motius(m);
+  const ll = m.c.lluna;
+  const perills = [...new Set(ev.hores.map(h => h.perill).filter(Boolean))];
+  const plan = m.especies.map(e => `<tr><td><strong>${e.s.nom}</strong></td><td>${e.s.tecnica}</td><td>${e.s.muntatge}</td><td>${e.s.esquer}</td></tr>`).join('');
+  const cabH = ev.hores.map(h => `<th>${fmtHora(h.ts)}</th>`).join('');
+  const filaH = ev.hores.map(h => { const [b, f] = MOTOR.color(h.punts); return `<td class="punt" style="background:${b};color:${f}">${h.punts}</td>`; }).join('');
+  return `
+    <h3>Índex de pesca (pròximes 24 h)</h3>
+    ${esMejor ? '<div class="destacado">★ <strong>Millor spot de la costa</strong> en les pròximes 24 h.</div>' : ''}
+    <div class="indice">
+      <div class="bola grande" style="background:${bg};color:${fg}">${m.punts}</div>
+      <div><strong>Millor franja: ${fmtHora(ev.finestra[0], true)} – ${fmtHora(ev.finestra[1])}</strong> (${m.punts}/10)<br>
+        <span class="muted">Tram de referència: ${ev.tram.n}${prox.d >= 1 ? ` (a ${prox.d.toFixed(1)} km)` : ''} · fons de ${ev.tram.fons.map(f => MOTOR.FONDOS[f]).join(', ')}</span></div>
+    </div>
+    ${perills.length ? `<ul class="alerts">${perills.map(p => `<li class="w">${p}</li>`).join('')}</ul>` : ''}
+    <h4>Pla recomanat per a aquesta franja</h4>
+    <div class="scroll"><table class="plan">
+      <thead><tr><th>Espècie</th><th>Tècnica</th><th>Muntatge</th><th>Esquer o fals</th></tr></thead>
+      <tbody>${plan}</tbody>
+    </table></div>
+    <h4>Per què</h4>
+    <ul class="motivos">${pos.map(x => `<li>✔ ${x}</li>`).join('')}${neg.map(x => `<li>✖ ${x}</li>`).join('')}</ul>
+    <p class="muted">${ev.tram.nota} Lluna: ${ll.nom.toLowerCase()} (${Math.round(ll.illum * 100)} % il·luminada). Sol: surt a les ${MOTOR.hora(m.c.sol.sortida)} i es pon a les ${MOTOR.hora(m.c.sol.posta)}.</p>
+    ${ev.tram.protegit ? `<ul class="alerts"><li class="w">${ev.tram.protegit} Comprova la normativa vigent a la Generalitat.</li></ul>` : ''}
+    <h4>Índex hora a hora</h4>
+    <div class="scroll"><table><thead><tr>${cabH}</tr></thead><tbody><tr>${filaH}</tr></tbody></table></div>
+    <p class="muted">Índex orientatiu de l’1 al 10: aplica les regles del guia local (temporada, temperatura de l’aigua, fons, estat del mar, vent respecte a l’orientació de la costa, hora, pressió i lluna) a dades de model. No és una probabilitat mesurada ni garanteix captures. Si hi ha perill, l’índex queda limitat a 2. La lluna i el sol són calculats, no publicats per una font oficial.</p>`;
+}
+
+let mejorGlobal = null;
+const capaIndice = L.layerGroup().addTo(map);
+const capaMejor = L.layerGroup().addTo(map);
+ctrlCapas.addOverlay(capaIndice, 'Índex de pesca (boles)');
+ctrlCapas.addOverlay(capaMejor, 'Millor spot (estrella)');
+
+async function cargarIndice() {
+  const est = $('estadoIndice'), btn = $('btnMejor');
+  est.textContent = 'Calculant l’índex de pesca…';
+  btn.disabled = true;
+  const lat = TRAMS.map(x => x.lat).join(','), lon = TRAMS.map(x => x.lon).join(',');
+  const [rt, rm] = await Promise.allSettled([getJSON(urlTiempo(lat, lon, estado.modelo)), getJSON(urlMar(lat, lon))]);
+  if (rt.status !== 'fulfilled') { est.textContent = `No s’ha pogut calcular l’índex (${rt.reason.message}).`; return; }
+  const jt = [].concat(rt.value), jm = rm.status === 'fulfilled' ? [].concat(rm.value) : [];
+  const ahora = Math.floor(Date.now() / 1000);
+  const evs = TRAMS.map((tr, i) => {
+    const tAhora = jt[i].hourly.time.filter(x => x <= ahora).pop();
+    return MOTOR.avaluarTram(tr, serie(jt[i]), jm[i] ? serie(jm[i]) : () => null, tAhora);
+  }).filter(Boolean);
+  capaIndice.clearLayers(); capaMejor.clearLayers();
+  if (!evs.length) { est.textContent = 'No hi ha prou dades per a l’índex.'; return; }
+
+  mejorGlobal = evs.reduce((a, b) => b.millor.punts > a.millor.punts
+    || (b.millor.punts === a.millor.punts && b.millor.especies[0].val > a.millor.especies[0].val) ? b : a);
+
+  for (const ev of evs) {
+    if (ev === mejorGlobal) continue;
+    const [bg, fg] = MOTOR.color(ev.millor.punts);
+    L.marker([ev.tram.lat, ev.tram.lon], {
+      icon: L.divIcon({ className: '', html: `<div class="bola" style="background:${bg};color:${fg}">${ev.millor.punts}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] }),
+    }).bindTooltip(`${ev.tram.n}: ${ev.millor.punts}/10 · ${fmtHora(ev.finestra[0], true)} – ${fmtHora(ev.finestra[1])}`)
+      .on('click', () => seleccionar(ev.tram.lat, ev.tram.lon))
+      .addTo(capaIndice);
+  }
+
+  const mg = mejorGlobal, m = mg.millor, e0 = m.especies[0];
+  const franja = `${fmtHora(mg.finestra[0], true)} – ${fmtHora(mg.finestra[1])}`;
+  const estrella = L.marker([mg.tram.lat, mg.tram.lon], {
+    icon: L.divIcon({ className: '', html: `<div class="estrella">★</div>`, iconSize: [40, 40], iconAnchor: [20, 22] }),
+    zIndexOffset: 1000,
+  }).bindPopup(`<strong>★ Millor spot: ${mg.tram.n}</strong><br>
+      Índex ${m.punts}/10 · ${franja}<br>
+      Espècies: ${m.especies.map(e => e.s.nom).join(', ')}<br>
+      ${e0.s.tecnica}: ${e0.s.esquer}<br>
+      <em>${MOTOR.motius(m).pos.slice(0, 3).join('; ')}</em><br>
+      <span style="font-size:11px">Detall complet al panell.</span>`)
+    .bindTooltip(`★ ${mg.tram.n}: ${m.punts}/10 · ${franja}`)
+    .on('click', () => seleccionar(mg.tram.lat, mg.tram.lon))
+    .addTo(capaMejor);
+
+  const sinMar = rm.status !== 'fulfilled' ? ' Sense dades de mar: l’índex és menys fiable.' : '';
+  est.textContent = `Índex calculat a les ${fmtHora(ahora)}. Millor spot: ${mg.tram.n} (${m.punts}/10, ${franja}).${sinMar}`;
+  btn.disabled = false;
+  btn.onclick = () => { map.setView([mg.tram.lat, mg.tram.lon], 13); estrella.openPopup(); seleccionar(mg.tram.lat, mg.tram.lon); };
+}
+
+function generarAvisos(tsFut, vt, vm, marVacio) {
+  const out = [];
+  const max = fn => Math.max(...tsFut.map(fn).filter(v => v != null), -Infinity);
+  const racha = max(x => vt('wind_gusts_10m', x));
+  const viento = max(x => vt('wind_speed_10m', x));
+  const dirAhora = vt('wind_direction_10m', tsFut[0]);
+  if (dirAhora != null) out.push({ t: `Ara entra vent de <strong>${VIENTOS[Math.round(dirAhora / 45) % 8]}</strong>, a uns ${Math.round(vt('wind_speed_10m', tsFut[0]) ?? 0)} km/h.` });
+  if (racha >= 50) out.push({ w: 1, t: `Ratxes de fins a ${Math.round(racha)} km/h. Desaconsellat pescar a la roca o a l’espigó exposat.` });
+  else if (racha >= 35) out.push({ w: 1, t: `Ratxes de fins a ${Math.round(racha)} km/h. Busca una costa resguardada i extrema la precaució a la roca.` });
+  else if (viento < 12 && viento > -Infinity) out.push({ t: 'Vent fluix: bones condicions per a llançament lleuger, eging i spinning.' });
+
+  if (!marVacio) {
+    const ola = max(x => vm('wave_height', x));
+    const fondo = max(x => vm('swell_wave_height', x));
+    const per = max(x => vm('swell_wave_period', x));
+    if (ola >= 1.5 || (fondo >= 1 && per >= 8)) out.push({ w: 1, t: `Mar de ${ola.toFixed(1)} m (mar de fons de ${fondo.toFixed(1)} m amb ${per.toFixed(0)} s de període). <strong>Evita la roca exposada</strong>: hi ha risc de cops de mar.` });
+    else if (ola >= 0.5) out.push({ t: `Mar moguda (${ola.toFixed(1)} m): l’escuma a la roca i a la platja afavoreix el llobarro i el sard. Pesca sempre des d’un lloc segur.` });
+    else if (ola > -Infinity) out.push({ t: `Mar en calma (${ola.toFixed(1)} m), amb aigua probablement clara: pesca fi o a l’alba, al capvespre o de nit.` });
+    const sst = vm('sea_surface_temperature', tsFut[0]);
+    if (sst != null) out.push({ t: `Aigua a ${sst.toFixed(1)} °C.` });
+  }
+  out.push({ t: 'Recorda: necessites llicència de pesca recreativa i has de respectar les zones protegides (Cap de Creus, Medes i Montgrí, Ses Negres).' });
+  return out;
+}
+
+async function comparar(tAhora) {
+  const box = $('comparativa');
+  box.innerHTML = '<p class="muted">Carregant models…</p>';
+  const ms = MODELOS.filter(x => x[0] !== 'best_match');
+  const { lat, lon } = punto;
+  try {
+    const j = await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m&forecast_hours=9&timeformat=unixtime&models=${ms.map(x => x[0]).join(',')}`);
+    const idx = new Map(j.hourly.time.map((t, i) => [t, i]));
+    const horas = [1, 2, 3, 4, 5, 6, 7, 8].map(h => tAhora + h * 3600);
+    const vel = v => v == null ? '—' : Math.round(estado.nudos ? kmhToKn(v) : v);
+    const u = estado.nudos ? 'kn' : 'km/h';
+    const filas = ms.map(([k, n]) => {
+      const s = j.hourly[`wind_speed_10m_${k}`], g = j.hourly[`wind_gusts_10m_${k}`], d = j.hourly[`wind_direction_10m_${k}`];
+      return `<tr><th class="var">${n}</th>${horas.map(h => {
+        const i = idx.get(h);
+        if (i == null || !s || s[i] == null) return '<td>—</td>';
+        return `<td data-l="${nivelViento(s[i])}">${vel(s[i])}/${vel(g?.[i])}<br>${dirTexto(d?.[i])}</td>`;
+      }).join('')}</tr>`;
+    }).join('');
+    // Dispersión entre modelos a cada hora
+    const disp = horas.map(h => {
+      const i = idx.get(h);
+      const v = ms.map(([k]) => j.hourly[`wind_speed_10m_${k}`]?.[i]).filter(x => x != null);
+      return v.length > 1 ? Math.max(...v) - Math.min(...v) : null;
+    });
+    const dmax = Math.max(...disp.filter(x => x != null), 0);
+    const conf = dmax < 8 ? 'alta' : dmax < 15 ? 'mitjana' : 'baixa';
+    box.innerHTML = `<div class="scroll"><table>
+      <thead><tr><th class="var">Model (mitjà/ratxa ${u})</th>${horas.map((h, n) => `<th>+${n + 1} h<span class="hsub">${fmtHora(h)}</span></th>`).join('')}</tr></thead>
+      <tbody>${filas}</tbody></table></div>
+      <p class="muted">Diferència màxima entre models: ${vel(dmax)} ${u}. Confiança de la previsió de vent: <strong>${conf}</strong>.</p>`;
+  } catch (e) {
+    box.innerHTML = `<p class="error">No s’ha pogut carregar la comparativa: ${e.message}</p>`;
+  }
+}
+
+// Punto compartido por URL (#lat,lon)
+const h = location.hash.slice(1).split(',').map(Number);
+if (h.length === 2 && h.every(Number.isFinite)) { map.setView(h, 14); seleccionar(h[0], h[1]); }
+cargarIndice();
+</script>
+</body>
+</html>
